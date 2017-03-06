@@ -1,53 +1,94 @@
+/*Neopixel Battery gauge (made for Neopixel ring)
+ 
+Clement Le Priol - February 2017
+
+Features :
+- Displays the battery capacity like a gauge from full ring to empty ring
+- The position of the gauge blinks smoothly and slowly
+- If charging, the ring switches in blue gradient
+- In case of very low battery, the whoe ring blinks in red
+- Set the brightness according to the ambiant luminosity (needs a photoresistor)
+
+TESTING : some input or variables have been created for testing. Comment/Modify/Delete if needed.
+ */
+
 #include <Adafruit_NeoPixel.h>
 #ifdef __AVR__
   #include <avr/power.h>
 #endif
 
-#define PIN 6
-#define NUM_LEDS 12
-#define BRIGHTNESS 15
+//Hardware configuration
+#define PIN 6 //Data out for WS2812 communication
+#define NUM_LEDS 12 //number of LEDS in ring/strip/stick
+#define BRIGHTNESS 50 //Set the brightness of the ring/strip/stick
+
+const int lumResistorPin= A0; //Luminosity sensor for adjusting the brightness
 
 Adafruit_NeoPixel ring = Adafruit_NeoPixel(NUM_LEDS, PIN, NEO_GRB + NEO_KHZ800);
-int capacite=80;
 
-const int btnPin =  7;      // the number of the LED pin
+uint8_t lowBatLevel = 10; //battery level for triggering low battery animation (whole ring/strip/stick blinking in red)
+
+//Used for testing
+uint8_t capacity=60; //set the capacity (0-100%)
+const uint8_t chargePin = 7; // pin for charge state (for testing)
+
+uint8_t ringArray [NUM_LEDS+1];
 
 void setup() {
   Serial.begin(9600);
   ring.begin();
   ring.setBrightness(BRIGHTNESS);
   ring.show(); // Initialize all pixels to 'off'
-  //Animation de début
-  for(uint8_t i=0; i<(ring.numPixels());i++) {
+  //Starting animation
+  for(int i=0; i<=ring.numPixels();i++) {
     ring.setPixelColor(i, 0, 45, 255);
     ring.show();
     delay(100);
   }
 
-  pinMode(btnPin, INPUT_PULLUP);
+  //Calculation of the capacity array for choosing how many leds to display
+  uint8_t nbLeds=ring.numPixels();
+  uint8_t capStep=100/nbLeds;
+
+  for (uint8_t i=0; i<=nbLeds; i++) {
+    ringArray[i]=capStep*i;
+  }
+  
+  pinMode(chargePin, INPUT_PULLUP); //(TEST) set the charge state pin as input with pullup resistor
 }
 
 void loop() {
 
+//TO DEBUG
 if (Serial.available()) {
-  capacite=Serial.read()*10;
-  Serial.println(capacite,DEC);
+  capacity=Serial.read()*10;
+  Serial.println(capacity,DEC);
 }
 
-boolean charge = digitalRead(btnPin);
+boolean charge = digitalRead(chargePin); //(TEST)
 
-//Détermine le pixel de position de jauge
-uint8_t lastPixel=selectLastPixel(capacite);
+int lumResistor = analogRead(lumResistorPin);
+uint8_t lum = map(lumResistor, 0, 1023, 0, 190);
+//Serial.print("lumResistor="); //Used for calibration
+//Serial.println(lumResistor);
+lum=constrain(lum,15,190); //Sets a minimum to avoid having weird colors due to a too weak brightness
+ring.setBrightness(lum);
+//Serial.print("lum="); //Used for calibration
+//Serial.println(lum);
 
-//Calcul de la couleur du ring en fonction de la capacite
-uint8_t redVal, greenVal, blueVal; /*
+//Select the last pixel showed and blinking on the ring/strip/stick
+uint8_t lastPixel=selectLastPixel(capacity);
+
+//Calculation of the ring color regarding the capacity
+uint8_t redVal, greenVal, blueVal;
+/*First pattern : all the ring in the same color (graduated regarding the capacity)
 if (charge ==false) {
-  if (capacite<=10) {
+  if (capacity<=10) {
      redVal = 255;
      greenVal = 0;
   }
   else {
-    greenVal = 255 * float(capacite/100.0);
+    greenVal = 255 * float(capacity/100.0);
     redVal = 255 - greenVal;
     blueVal=0;
   }
@@ -65,9 +106,9 @@ for(uint8_t i=ring.numPixels();i>=lastPixel;i--) {
   delay(100);
 } */
 
-//test degrade
+//Second pattern : the ring color is graduated whatever the capacity
 if (charge ==false) {
-  if (capacite<=10) {
+  if (capacity<=lowBatLevel) {
     for(uint8_t i=ring.numPixels();i>lastPixel;i--) {
       ring.setPixelColor(i-1,255,0,0);
       ring.show();
@@ -96,38 +137,16 @@ else {
     }
 }
 
-//Eteint les derniers pixels bleus
+//Switch off the pixels after the last selected
 for(uint8_t i=lastPixel;i>0;i--) {
   ring.setPixelColor(i-1, 0,0,0);
   ring.show();
   delay(100);
 }
 
-
-/*Fade pixel de position de jauge
-int fadeVal = 100;
-for (uint8_t i=0; i < 200; i++) {
-  float fadeMax = 100.0;
-  int redValFade, greenValFade, blueValFade;
-
-  //First loop, fade in!
-  if (i<100){
-    fadeVal--;
-  }
-  else {
-    fadeVal++;
-  }
-  redValFade = redVal * float(fadeVal/fadeMax);
-  greenValFade = greenVal * float(fadeVal/fadeMax);
-  blueValFade = blueVal * float(fadeVal/fadeMax);
-
-  ring.setPixelColor(lastPixel, redValFade, greenValFade, blueValFade );
-  ring.show();
-  delay(100);
-} */
-
-if (capacite>10 || charge){
-  fade(lastPixel,10);
+//Call the fade function of the last pixel if not in low battery state
+if (capacity>lowBatLevel || charge){
+  fade(lastPixel,8);
 }
 else {
   delay(200);
@@ -149,17 +168,15 @@ else {
   delay(2000);
 }
 
+//Selection of the last pixel according to the capacity
 uint8_t selectLastPixel (uint8_t value) {
-if (value>90){return 0;}
-if (value<91 && capacite > 80){return 1;}
-if (value<81 && capacite > 70){return 2;}
-if (value<71 && capacite > 60){return 3;}
-if (value<61 && capacite > 50){return 4;}
-if (value<51 && capacite > 40){return 5;}
-if (value<41 && capacite > 30){return 6;}
-if (value<31 && capacite > 20){return 7;}
-if (value<21 && capacite > 10){return 8;}
-if (value<11){return 9;}
+  uint8_t nbLeds = ring.numPixels();
+  //At least 1 led displayed even if capacity = 0
+    for(uint8_t i=1; i<=nbLeds;i++) {
+      if (value <= ringArray[i]){
+        return (nbLeds - i);
+      }
+    }
 }
 
 void fade (uint8_t pixel, uint16_t wait) {
