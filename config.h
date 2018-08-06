@@ -13,12 +13,13 @@
 #define BATT_TYPE 0 //Battery chemistry (0 = lipo; 1 = li-ion)
 
 #define FRONTLIGHT_PWR 100 //Frontlight power when board is stopped
-#define FRONTLIGHT_MAXPWR 180 //Frontlight max power 
+#define FRONTLIGHT_MAXPWR 180 //Frontlight max power
 #define AUTOLIGHT_ON 100 //Ambient luminosity for activating frontlight
 #define AUTOLIGHT_OFF 200 //Ambient luminosity for desactivating frontlight
 
 #define NUM_LEDS_RING 12 //number of LEDS of gauge (ring)
 #define NUM_LEDS_REARLIGHT 8 //number of rear light stick
 #define NUM_LEDS_TOTAL 20 //total number of WS2812 leds
+#define REARLIGHT_FIRST //if rear light stick is wired first in the data chain (PCB -> DIN Stick DOUT-> DIN ring), uncomment this line
 
 #endif
