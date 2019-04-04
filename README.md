@@ -1,2 +1,2 @@
-# NeopixelBatteryGauge
-Battery gauge using WS2812 Neopixel products (compatible with rings, strip, bars, through-hole LED...)
+# SmartRing
+Battery gauge using WS2812 LEDS products (designed for a 12 bits ring)
