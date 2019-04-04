@@ -1,6 +1,6 @@
 # SmartRing Project
 
-Accesory for VESC simple monitoring
+Accessory for VESC simple monitoring.
 
 Features :
 
